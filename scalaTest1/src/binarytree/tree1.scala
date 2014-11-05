@@ -21,6 +21,12 @@ sealed abstract class Tree[+T] {
   
   def stringRep:String
   
+  def preorder:List[T]
+  
+  def inorder:List[T]
+  
+  def toDotString:String
+  
   override final def toString = stringRep
 }
 
@@ -40,6 +46,8 @@ case class Node[+T](value: T, left: Tree[T], right: Tree[T]) extends Tree[T] {
     val chldRep = (left stringRep) +","+ (right stringRep)
     if(chldRep == ",") s"$value" else s"$value($chldRep)" 
   }
+  
+  val toDotString = s"$value"+left.toDotString+right.toDotString
   
   def isMirrorOf[U >: T](other: Tree[U]) = other match {
     case End => false
@@ -178,6 +186,10 @@ case class Node[+T](value: T, left: Tree[T], right: Tree[T]) extends Tree[T] {
 
     val height:Int = (if(left.height > right.height) left.height else right.height)+1
     
+    def preorder:List[T] = (value :: left.preorder) ::: right.preorder
+    
+    def inorder:List[T] = ( left.inorder :+ value) ::: right.inorder
+    
 }
 
 case object End extends Tree[Nothing] {
@@ -213,6 +225,12 @@ case object End extends Tree[Nothing] {
   
   val rightMostHDist:Int = 0
   
+  val preorder:List[Nothing] = List()
+  
+  val inorder:List[Nothing] = List()
+  
+  val toDotString = "."
+  
 }
 
 case class PositionedNode[+T](private val nd:Node[T], val left:Tree[T] , val right:Tree[T], val x: Int, y: Int) extends Tree[T] {
@@ -246,6 +264,12 @@ case class PositionedNode[+T](private val nd:Node[T], val left:Tree[T] , val rig
   def layoutBinaryTree3:PositionedNode[T] = nd.layoutBinaryTree3
   
   val height:Int = nd.height
+  
+  def preorder:List[T] = nd.preorder
+  
+  def inorder:List[T] = nd.inorder
+  
+  val toDotString = nd.toDotString 
   
 }
 
@@ -329,6 +353,30 @@ object Tree {
      case nodePat(value,left) =>{ val splits = splitExp(left); Node(value.charAt(0),fromString(splits._1),fromString(splits._2 ))}
      case leafPat(value) =>Node(value.charAt(0))
      case endPat(_*) => End
+   }
+   
+   
+   
+   def preInTree[T](preLst:List[T],inLst:List[T]):Tree[T] =(preLst,inLst) match { 
+     case (List(),List())  => End
+     case _ =>{
+     val inss = inLst indexWhere (_ == preLst(0))
+     val pre4Left = preLst.take(inss +1)
+     Node(preLst(0),preInTree(preLst.take(inss +1).tail,inLst take inss ),preInTree(preLst.drop(inss+1), inLst drop inss+1  ))
+     }
+     }
+   
+   def fromDotString(treeStr:String):Tree[Char] = {
+     def parseDotString(str:String):(Tree[Char],String) = str.charAt(0) match {
+       case '.' => (End,if(str.isDefinedAt(1))str.substring(1) else "")
+       case _ => {
+         val lTree = parseDotString(str.substring(1))
+         val rTree = parseDotString(lTree._2 )
+         
+         (Node(str.charAt(0),lTree._1 ,rTree._1),rTree._2 )
+       }
+     }
+     parseDotString(treeStr)._1 
    }
 }
 
@@ -468,6 +516,40 @@ res0: List(Node[String]) = List(T(x T(x . .) T(x . T(x . .))), T(x T(x . .) T(x 
    println("Tree.fromString(\"a(b(d,e),c(,f(g,)))\") --> "+Tree.fromString("a(b(d,e),c(,f(g,)))"))
    
    println("Tree.fromString(\"a\") --> "+Tree.fromString("a"))
+   
+   /*
+    * scala> Tree.string2Tree("a(b(d,e),c(,f(g,)))").preorder
+		res0: List[Char] = List(a, b, d, e, c, f, g)
+    */
+   println("Tree.fromString(\"a(b(d,e),c(,f(g,)))\").preorder --> "+Tree.fromString("a(b(d,e),c(,f(g,)))").preorder)
+   
+   /*
+    * scala> Tree.string2Tree("a(b(d,e),c(,f(g,)))").inorder
+				res1: List[Char] = List(d, b, e, a, c, g, f)
+    */
+   
+   println(" Tree.fromString(\"a(b(d,e),c(,f(g,)))\").inorder --> "+Tree.fromString("a(b(d,e),c(,f(g,)))").inorder)
+   
+   /*
+    * scala> Tree.preInTree(List('a', 'b', 'd', 'e', 'c', 'f', 'g'), List('d', 'b', 'e', 'a', 'c', 'g', 'f'))
+			res2: Node[Char] = a(b(d,e),c(,f(g,)))
+    */
+   println("Tree.preInTree(List('a', 'b', 'd', 'e', 'c', 'f', 'g'), List('d', 'b', 'e', 'a', 'c', 'g', 'f')) --> "+
+       Tree.preInTree(List('a', 'b', 'd', 'e', 'c', 'f', 'g'), List('d', 'b', 'e', 'a', 'c', 'g', 'f')))
+       
+   println("Tree.preInTree(List('a', 'b', 'a'), List('b', 'a', 'a')) --> "+Tree.preInTree(List('a', 'b', 'a'), List('b', 'a', 'a')))    
+   
+   /*
+    * scala> Tree.string2Tree("a(b(d,e),c(,f(g,)))").toDotstring
+		res0: String = abd..e..c.fg...
+
+		scala> Tree.fromDotstring("abd..e..c.fg...")
+		res1: Node[Char] = a(b(d,e),c(,f(g,)))
+    */
+   
+   println("Tree.fromString(\"a(b(d,e),c(,f(g,)))\").toDotstring --> "+Tree.fromString("a(b(d,e),c(,f(g,)))").toDotString)
+   
+   println("Tree.fromDotstring(\"abd..e..c.fg...\") --> "+Tree.fromDotString("abd..e..c.fg..."))
       
 }
 

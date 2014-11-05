@@ -52,4 +52,8 @@ object scalaTst1 {
                                                   //> res10: scala.collection.immutable.IndexedSeq[Int] = Vector(0, 0, 1, 1, 1, 1
                                                   //| , 0, 0, 0, 1, 1, 1, 2, 2, 2, 1, 0)
      //"a(b(d,e),c(,f(g,)))"
+     
+     List('d,'a,'s) indexWhere (_ == 'a)          //> res11: Int = 1
+     
+     List('d,'a,'s) take 0                        //> res12: List[Symbol] = List()
 }
