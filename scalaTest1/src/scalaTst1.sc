@@ -47,13 +47,107 @@ object scalaTst1 {
    }                                              //> res8: String = matched nodePat!! a,left--> c(,f(g,))
 
  """\w""".r findFirstIn("a")                      //> res9: Option[String] = Some(a)
- 
+
+val grphPat1 = """\[(\w{1}-\w{1}[,])*|(\w{1}-\w{1})*\]""".r
+                                                  //> grphPat1  : scala.util.matching.Regex = \[(\w{1}-\w{1}[,])*|(\w{1}-\w{1})*\
+                                                  //| ]
+val grphPat2 = """(\w{1}-\w{1})|(\w{1})""".r      //> grphPat2  : scala.util.matching.Regex = (\w{1}-\w{1})|(\w{1})
+val grphPat3 = """(\w{1}>\w{1}/\w{1})|(\w{1})""".r//> grphPat3  : scala.util.matching.Regex = (\w{1}>\w{1}/\w{1})|(\w{1})
+val singleNodePat = """(\w{1})""".r               //> singleNodePat  : scala.util.matching.Regex = (\w{1})
+ val grphEdgeLabelPat = """(\w{1})>(\w{1})/(\w{1})""".r
+                                                  //> grphEdgeLabelPat  : scala.util.matching.Regex = (\w{1})>(\w{1})/(\w{1})
+
+(for(r <- grphPat2.findAllIn("[a-b,b-c,d]") if !r.isEmpty)yield r ).flatMap((a:String)=> a.split("-").toList).toList
+                                                  //> res10: List[String] = List(a, b, b, c, d)
+(for(r <- grphPat2.findAllIn("[a-b,b-c,d]"))yield r ).map(_.toString).toList
+                                                  //> res11: List[String] = List(a-b, b-c, d)
+
+(for(r <- grphPat3.findAllIn("[a>b/4,b>c/5,d]"))yield r ).map {
+      case grphEdgeLabelPat(n1, n2,v) => List(n1, n2,v)
+      case singleNodePat(n1) => List(n1)
+    }.toList                                      //> res12: List[List[String]] = List(List(a, b, 4), List(b, c, 5), List(d))
+ "[a-b,b-c]" match {
+  case grphPat1(value) => println(value)
+  case _ => println( "de")
+ }                                                //> de
  ("b(d,e),c(,f(g,))" map {case '(' => 1; case ')' => -1;case _ => 0}).scanLeft (0)(_+_)
-                                                  //> res10: scala.collection.immutable.IndexedSeq[Int] = Vector(0, 0, 1, 1, 1, 1
+                                                  //> res13: scala.collection.immutable.IndexedSeq[Int] = Vector(0, 0, 1, 1, 1, 1
                                                   //| , 0, 0, 0, 1, 1, 1, 2, 2, 2, 1, 0)
      //"a(b(d,e),c(,f(g,)))"
      
-     List('d,'a,'s) indexWhere (_ == 'a)          //> res11: Int = 1
+     List('d,'a,'s) indexWhere (_ == 'a)          //> res14: Int = 1
      
-     List('d,'a,'s) take 0                        //> res12: List[Symbol] = List()
+     List('d,'a,'s) take 0                        //> res15: List[Symbol] = List()
+     
+     class Outer{
+       class Inner
+     }
+     
+     val o1 = new Outer                           //> o1  : scalaTst1.Outer = scalaTst1$$anonfun$main$1$Outer$1@5282140
+     val i1 = new o1.Inner                        //> i1  : scalaTst1.o1.Inner = scalaTst1$$anonfun$main$1$Outer$1$Inner@1e00ae86
+                                                  //| 
+    import scala.reflect.runtime.{universe => ru}
+    
+   // val m = ru.runtimeMirror(i1.getClass.getClassLoader)
+ 
+  //m.typeOf
+    //val shippingTermSymb = ru.typeOf[Purchase].declaration(ru.newTermName("shipped")).asTerm
+   val s = "(a(fg)c(bde))"                        //> s  : String = (a(fg)c(bde))
+   def nextStrBound(pos: Int, nesting: Int): Int ={
+      
+    
+     // println("nextStrBound --. "+s+" nesting "+nesting+" pos--> "+pos+" s(pos) --> "+s(pos))
+      if (nesting == 0) pos
+      else nextStrBound(pos + 1, if (s(pos) == ')') nesting - 1 else if(s(pos) == '(') nesting + 1 else nesting)
+    }                                             //> nextStrBound: (pos: Int, nesting: Int)Int
+    def splitChildStrings(pos: Int): List[String] =
+      if (pos >= s.length) Nil
+      else {
+        val end = nextStrBound(pos , 0)+1
+        println("s --> "+s)
+        println("substring "+s.substring(pos, end ))
+        s.substring(pos, end ) :: splitChildStrings(end)
+      }                                           //> splitChildStrings: (pos: Int)List[String]
+      
+//      splitChildStrings(2)
+
+object test{
+//these are methods
+ def foo() = "this is the normal method"
+ def foo(n:Int) = "this is the overloaded method "+n
+}
+
+ def recursiveFibonacci(n:Int):Int = n match {
+   case 0 => 1
+   case 1 => 1
+   case _ => recursiveFibonacci(n-1) + recursiveFibonacci(n-2)
+ }                                                //> recursiveFibonacci: (n: Int)Int
+ 
+ recursiveFibonacci(11)                           //> res16: Int = 144
+ 
+ import scala.actors._
+ 
+  object evenActor extends Actor{
+  var startNum = 2
+   def act()={
+     receive {
+       case "your_turn" => startNum += 2;println(startNum);startNum
+     }
+   }
+  
+  }
+ // evenActor.start()
+ 
+ def f1(n:Int,ff:Int=>Int):Int = {
+    println(n)
+    ff(n+1)
+ }                                                //> f1: (n: Int, ff: Int => Int)Int
+ 
+ def f2(n:Int,ff:Int=>Int):Int = {
+    println(n)
+    ff(n+2)
+ }                                                //> f2: (n: Int, ff: Int => Int)Int
+ 
+ //val ff1 = f1(1)()()
+// f1.
 }

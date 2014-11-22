@@ -18,10 +18,14 @@ class Rational(val numer:Int,
   
 }
 
+class Rational1(val n:Int, val d:Int, val str:String) extends Rational(n,d){
+  override def toString = str+super.toString+str
+}
+
 
 object testRational extends App {
 	implicit def IntToRational(x:Int) = new Rational(x)
-   val t = new Rational(2,3)
+   val t = new Rational1(2,3,"|")
 	println("t.numer "+t.numer)
    println(t+" created t")
    println(" t * t "+t*t)
