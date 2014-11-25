@@ -1,3 +1,4 @@
+import scala.collection.mutable.ListBuffer
 object scalaTst1 {
   println("Welcome to the Scala worksheet")       //> Welcome to the Scala worksheet
   
@@ -83,8 +84,8 @@ val singleNodePat = """(\w{1})""".r               //> singleNodePat  : scala.uti
        class Inner
      }
      
-     val o1 = new Outer                           //> o1  : scalaTst1.Outer = scalaTst1$$anonfun$main$1$Outer$1@5282140
-     val i1 = new o1.Inner                        //> i1  : scalaTst1.o1.Inner = scalaTst1$$anonfun$main$1$Outer$1$Inner@1e00ae86
+     val o1 = new Outer                           //> o1  : scalaTst1.Outer = scalaTst1$$anonfun$main$1$Outer$1@37408d95
+     val i1 = new o1.Inner                        //> i1  : scalaTst1.o1.Inner = scalaTst1$$anonfun$main$1$Outer$1$Inner@741ad263
                                                   //| 
     import scala.reflect.runtime.{universe => ru}
     
@@ -147,7 +148,23 @@ object test{
     println(n)
     ff(n+2)
  }                                                //> f2: (n: Int, ff: Int => Int)Int
+ val t1 = "t1fsdfs"                               //> t1  : String = t1fsdfs
+ val t2 = "fasfsfst2"                             //> t2  : String = fasfsfst2
+ s"$t1-$t2"                                       //> res17: String = t1fsdfs-fasfsfst2
+ "%s-%s/%s".format(t1,t2,3)                       //> res18: String = t1fsdfs-fasfsfst2/3
+ Set('a,'b) diff Set('b,'c)                       //> res19: scala.collection.immutable.Set[Symbol] = Set('a)
  
+//sfrmt
  //val ff1 = f1(1)()()
 // f1.
+ val as = ListBuffer('a,'x)                       //> as  : scala.collection.mutable.ListBuffer[Symbol] = ListBuffer('a, 'x)
+ as  insert (0,'y)
+ as                                               //> res20: scala.collection.mutable.ListBuffer[Symbol] = ListBuffer('y, 'a, 'x)
+                                                  //| 
+ List(4,3,1,5,2).foldLeft(ListBuffer[Int]())((acc,x)=> { val idx = acc.indexWhere(_>x);acc.insert(if(idx < 0) {if(!acc.isEmpty && x > acc.last) acc.size-1 else 0} else idx ,x);acc})
+                                                  //> res21: scala.collection.mutable.ListBuffer[Int] = ListBuffer(1, 2, 3, 5, 4)
+                                                  //| 
+List(4,3,1,5,2).foldLeft(ListBuffer[Int]())((acc,x)=> { acc.insert(if(!acc.isEmpty && x >acc.last)acc.size else acc.indexWhere(_<x)+1 ,x);acc})
+                                                  //> res22: scala.collection.mutable.ListBuffer[Int] = ListBuffer(1, 2, 3, 4, 5)
+                                                  //| 
 }

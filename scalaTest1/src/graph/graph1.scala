@@ -4,6 +4,7 @@ import scala.util.matching.Regex
 import scala.collection.immutable.TreeMap
 import scala.collection.immutable.TreeSet
 import scala.math.Ordering._
+import scala.collection.mutable.ListBuffer
 
   abstract class GraphBase[T, U] {
     case class Edge(n1: Node, n2: Node, value: U) {
@@ -13,6 +14,7 @@ import scala.math.Ordering._
       var adj: List[Edge] = Nil
       // neighbors are all nodes adjacent to this node.
       def neighbors: List[Node] = adj.map(edgeTarget(_, this).get)
+      def degree = neighbors.size
     }
 
     var nodes: Map[T, Node] = Map()
@@ -45,12 +47,12 @@ import scala.math.Ordering._
     
     def findCycles(n1:T):List[List[T]] = nodes(n1).neighbors.flatMap(n=>findPaths(n.value , n1).filter(_ != List(n.value,n1))).map(n1::_) 
     
-    def minimalSpanningTree(implicit f:Ordering[U]):Graph[T,U] = {
+    def minimalSpanningTree(implicit f:Ordering[U]) = {
    		implicit val edgeOrder = f.on((x:Edge)=>x.value)
       
       //candidateEdges ++ 
-      def mstR( collectedEdges:List[Edge], candidateEdges:TreeSet[Edge], collectedNodes:Set[Node]):Graph[T,U] =
-        if(collectedNodes.size == nodes.size) Graph.termLabel(nodes.values.toList.map(nd=>nd.value ), collectedEdges.map(e=>(e.n1.value ,e.n2.value,e.value)))
+      def mstR( collectedEdges:List[Edge], candidateEdges:TreeSet[Edge], collectedNodes:Set[Node]):getCompanionObj.GraphClass[T,U] =
+        if(collectedNodes.size == nodes.size) getCompanionObj.termLabel(nodes.values.toList.map(nd=>nd.value ), collectedEdges.map(e=>(e.n1.value ,e.n2.value,e.value)))
         else {
          val currMin =  candidateEdges.min
          val otherEnd = if(collectedNodes(currMin.n1)) currMin.n2 else currMin.n1
@@ -60,21 +62,54 @@ import scala.math.Ordering._
      mstR(List(),TreeSet[Edge]()++nodes.head._2.adj,Set(nodes.head._2 ))
     }
     
-    //TODO: some duplicates still coming
-    def spanningTrees:List[Graph[T,U]] = {
+    def spanningTrees = {
       
       //candidateEdges ++ 
-      def mstR( collectedEdges:List[Edge], candidateEdges:List[Edge], collectedNodes:Set[Node]):List[List[Edge]] =
-        if(collectedNodes.size == nodes.size) List(collectedEdges)//collectedEdgess.map(collectedEdges=>Graph.termLabel(nodes.values.toList.map(nd=>nd.value ), collectedEdges.map(e=>(e.n1.value ,e.n2.value,e.value))))
+      def mstR( collectedEdges:Set[Edge], candidateEdges:Set[Edge], collectedNodes:Set[Node]):Set[Set[Edge]] =
+        if(collectedNodes.size == nodes.size) Set(collectedEdges)//collectedEdgess.map(collectedEdges=>Graph.termLabel(nodes.values.toList.map(nd=>nd.value ), collectedEdges.map(e=>(e.n1.value ,e.n2.value,e.value))))
         else {
           candidateEdges.flatMap(edg =>{
         			  val otherEnd = if(collectedNodes(edg.n1)) edg.n2 else edg.n1
         			  val cns = collectedNodes + otherEnd
-        			  mstR( edg :: collectedEdges ,(candidateEdges ++ otherEnd.adj).filter(x=> !(cns(x.n1) && cns(x.n2))), cns)
+        			  
+        			  mstR( collectedEdges + edg ,(candidateEdges ++ otherEnd.adj).filter(x=> !(cns(x.n1) && cns(x.n2)) ), cns)
           })
         }
-     mstR(List(),List()++nodes.head._2.adj,Set(nodes.head._2 )).map(collectedEdges=>Graph.termLabel(nodes.values.toList.map(nd=>nd.value ), collectedEdges.map(e=>(e.n1.value ,e.n2.value,e.value))))
+     mstR(Set(),Set()++nodes.head._2.adj,Set(nodes.head._2 )).toList.map(collectedEdges=>getCompanionObj.termLabel(nodes.values.toList.map(nd=>nd.value ), collectedEdges.toList.map(e=>(e.n1.value ,e.n2.value,e.value))))
     }
+    
+  override def toString = toTermString(nodes.values.toSet,edges) 
+    
+   def toTermString(nodes: Set[Node], edges: List[Edge])={
+     val edgStrs =  edges map (toEdgeStr)
+     val nonConnectedNodes  = (nodes map (_.value)) diff (Set[T]() /: edges)((acc,x)=>{acc+ x.n1.value } +x.n2.value  )
+     val ndStrs =  nonConnectedNodes map ( _.toString)
+     (edgStrs ++ ndStrs) mkString("[", ",", "]")
+   }
+     def toEdgeStr[T](e:Edge)= e.value match { case () => edgeFormat.format(e.n1.value,e.n2.value)
+     case _ => termEdgeFormat.format(e.n1.value,e.n2.value,e.value)}
+     
+     val edgeFormat:String
+     val termEdgeFormat:String
+     
+   //  def nodesByDegree(implicit f:Ordering[T])  = nodes.foldLeft(ListBuffer[Node]())((acc,x)=> { acc.insert(if(!acc.isEmpty && f.gt( x._1 ,acc.last.value) )acc.size else acc.indexWhere(nd => f.lt(nd.value,x._1))+1 ,x._2);acc})
+       def nodesByDegree  = nodes.foldLeft(ListBuffer[Node]())((acc,x)=> { acc.insert(if(acc.isEmpty ||  x._2.degree > acc.head.degree)  0  else acc.indexWhere(_.degree > x._2.degree)+1 ,x._2);acc})
+       
+       def colorNodes = (List[(Node,Int)]() /:nodesByDegree)((acc,x)=> { val ns = acc.filter(nd => !x.neighbors.exists(nd._1  == _)); 
+       																		if(ns.isEmpty){if(acc.isEmpty)  (x,1) :: acc else  (x,acc.head._2 +1) :: acc}
+       																		else  (x, ns.last._2 ) :: acc}).reverse
+       																		
+   protected	def dfsR(path:List[Node],frm:Node):List[Node] = ((frm :: path) /: frm.neighbors)((acc,x)=> if(acc.contains(x)) acc else dfsR(acc,x))
+   
+   def nodesByDepthFrom(nodeVal:T)={
+          dfsR(List[Node](),nodes(nodeVal)) map (_.value)
+     }
+   
+    def splitGraph =  (List[List[Node]]() /: nodes.values)((acc,x) => if(acc.exists(_ contains x)) acc else dfsR(List(),x)::acc).map (nds=> getCompanionObj.termLabel(nds map (_.value ) , (Set[Edge]() /: nds)((acc,x)=>acc ++ x.adj ).toList.map(e=>(e.n1.value ,e.n2.value,e.value)))) 
+   
+    val getCompanionObj:GraphObjBase
+    
+    def isBipartite = (-9999 /: {colorNodes map (_._2)})((acc,x)=> if(x>acc)x else acc) == 2
 }
   class Graph[T, U] extends GraphBase[T, U] {
     override def equals(o: Any) = o match {
@@ -93,6 +128,11 @@ import scala.math.Ordering._
       nodes(n1).adj = e :: nodes(n1).adj
       nodes(n2).adj = e :: nodes(n2).adj
     }
+    
+    val edgeFormat = "%s-%s"
+     val termEdgeFormat = "%s-%s/%s"
+       
+    val getCompanionObj = Graph   
   }
   
   class Digraph[T, U] extends GraphBase[T, U] {
@@ -110,6 +150,11 @@ import scala.math.Ordering._
       edges = e :: edges
       nodes(source).adj = e :: nodes(source).adj
     }
+    
+    val edgeFormat = "%s>%s"
+    val termEdgeFormat = "%s>%s/%s"
+      
+    val getCompanionObj = Digraph  
   }
   
   abstract class GraphObjBase {
@@ -152,6 +197,7 @@ import scala.math.Ordering._
       ).toList
       termLabel(nodStrs, edgTuples)
     }
+   
 
   }   
   
@@ -239,18 +285,66 @@ import scala.math.Ordering._
      * scala> Graph.fromStringLabel("[a-b/1, b-c/2, a-c/3]").minimalSpanningTree
 		res0: Graph[String,Int] = [a-b/1, b-c/2]
      */
-    println("Graph.fromStringLabel(\"[a-b/1, b-c/2, a-c/3]\").minimalSpanningTree --> "+Graph.fromStringLabel("[a-b/1, b-c/2, a-c/3]").minimalSpanningTree.toTermForm)
+    println("Graph.fromStringLabel(\"[a-b/1, b-c/2, a-c/3]\").minimalSpanningTree --> "+Graph.fromStringLabel("[a-b/1, b-c/2, a-c/3]").minimalSpanningTree)
     
     println(" MST for the big one !! --> "+Graph.termLabel(
   List('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'),
        List(('a', 'b', 5), ('a', 'd', 3), ('b', 'c', 2), ('b', 'e', 4),
             ('c', 'e', 6), ('d', 'e', 7), ('d', 'f', 4), ('d', 'g', 3),
-            ('e', 'h', 5), ('f', 'g', 4), ('g', 'h', 1))).toTermForm)
+            ('e', 'h', 5), ('f', 'g', 4), ('g', 'h', 1))))
             
      /*
       *       scala> Graph.fromString("[a-b, b-c, a-c]").spanningTrees
 				res0: List[Graph[String,Unit]] = List([a-b, b-c], [a-c, b-c], [a-b, a-c])
       */       
-     println("Graph.fromString(\"[a-b, b-c, a-c]\").spanningTrees --> "+Graph.fromString("[a-b, b-c, a-c]").spanningTrees.map(_.toTermForm+"\n"))       
+     println("Graph.fromString(\"[a-b, b-c, a-c]\").spanningTrees --> "+Graph.fromString("[a-b, b-c, a-c]").spanningTrees)
+     
+     /*
+      *scala> Graph.fromString("[a-b, b-c, a-c, a-d]").nodes("a").degree
+	     res0: Int = 3
+	     
+	     scala> Graph.fromString("[a-b, b-c, a-c, a-d]").nodesByDegree
+			res1: List[Graph[String,Unit]#Node] = List(Node(a), Node(c), Node(b), Node(d)) 
+      */
+     println("Graph.fromString(\"[a-b, b-c, a-c, a-d]\").nodes(\"a\").degree --> "+Graph.fromString("[a-b, b-c, a-c, a-d]").nodes("a").degree)
+     println("Graph.fromString(\"[a-b, b-c, a-c, a-d]\").nodesByDegree --> "+Graph.fromString("[a-b, b-c, a-c, a-d]").nodesByDegree)
+     
+     /*
+      * scala> Graph.fromString("[a-b, b-c, a-c, a-d]").colorNodes
+			res2: List[(Graph[String,Unit]#Node,Int)] = List((Node(a),1), (Node(b),2), (Node(c), 3), (Node(d), 2))
+      */
+     println("Graph.fromString(\"[a-b, b-c, a-c, a-d]\").colorNodes --> "+Graph.fromString("[a-b, b-c, a-c, a-d]").colorNodes)
+     
+     /*
+      * scala> Graph.fromString("[a-b, b-c, e, a-c, a-d]").nodesByDepthFrom("d")
+         res0: List[String] = List(c, b, a, d)
+      */
+     println("Graph.fromString(\"[a-b, b-c, e, a-c, a-d]\").nodesByDepthFrom(\"d\") --> "+Graph.fromString("[a-b, b-c, e, a-c, a-d]").nodesByDepthFrom("d"))
+     
+     /*
+      * scala> Graph.fromString("[a-b, c]").splitGraph
+		res0: List[Graph[String,Unit]] = List([a-b], [c])
+      */
+     println("Graph.fromString(\"[a-b, c]\").splitGraph --> "+Graph.fromString("[a-b, c]").splitGraph)
+     
+     /*
+      * scala> Digraph.fromString("[a>b, c>a, d>b]").isBipartite
+			res0: Boolean = true
+			
+			scala> Graph.fromString("[a-b, b-c, c-a]").isBipartite
+			res1: Boolean = false
+			
+			scala> Graph.fromString("[a-b, b-c, d]").isBipartite
+			res2: Boolean = true
+			
+			scala> Graph.fromString("[a-b, b-c, d, e-f, f-g, g-e, h]").isBipartite
+			res3: Boolean = false
+      */
+     
+     println("Digraph.fromString(\"[a>b, c>a, d>b]\").isBipartite --> "+Digraph.fromString("[a>b, c>a, d>b]").isBipartite)
+     println("Graph.fromString(\"[a-b, b-c, c-a]\").isBipartite --> "+Graph.fromString("[a-b, b-c, c-a]").isBipartite)
+     println("Graph.fromString(\"[a-b, b-c, d]\").isBipartite --. "+Graph.fromString("[a-b, b-c, d]").isBipartite)
+     println("Graph.fromString(\"[a-b, b-c, d, e-f, f-g, g-e, h]\").isBipartite --> "+Graph.fromString("[a-b, b-c, d, e-f, f-g, g-e, h]").isBipartite)
+     
   }
 
